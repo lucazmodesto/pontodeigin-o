@@ -1,0 +1,451 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ponto de Ignição</title>
+    <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
+    <style>
+        :root { --primary: #00ff88; --bg: #050505; --card: #121212; --text: #ffffff; --next: #ffcc00; --danger: #ff4444; }
+        body { font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; background-color: var(--bg); color: var(--text); display: flex; flex-direction: column; align-items: center; padding: 20px; margin: 0; min-height: 100vh; overflow-x: hidden; }
+
+        .main-container { display: flex; flex-wrap: wrap; justify-content: center; gap: 20px; width: 100%; max-width: 1000px; padding-bottom: 50px; }
+        .left-panel { flex: 1; min-width: 320px; max-width: 450px; }
+        .right-panel { width: 320px; background: var(--card); padding: 20px; border-radius: 20px; border: 1px solid #222; height: fit-content; box-shadow: 0 10px 30px rgba(0,0,0,0.5); }
+
+        /* ✅ ORDEM NO CELULAR: Missões em cima, 100 dias embaixo */
+        @media (max-width: 767px) {
+            .right-panel { order: 1; } /* Missões primeiro */
+            .left-panel  { order: 2; } /* 100 dias depois */
+        }
+        /* ✅ DESKTOP mantém como está: 100 dias esquerda, missões direita */
+        @media (min-width: 768px) {
+            .left-panel  { order: 1; }
+            .right-panel { order: 2; }
+        }
+
+        h1 { color: var(--primary); text-transform: uppercase; letter-spacing: 4px; font-size: 1.2rem; text-align: center; margin-bottom: 5px; text-shadow: 0 0 10px rgba(0,255,136,0.3); }
+        .subtitle { color: #666; font-size: 0.8rem; text-align: center; margin-bottom: 20px; font-style: italic; }
+
+        .stats { background: var(--card); padding: 20px; border-radius: 20px; border: 1px solid #222; margin-bottom: 20px; text-align: center; position: relative; }
+        .progress-bar { background: #222; height: 12px; border-radius: 10px; margin: 15px 0; overflow: hidden; box-shadow: inset 0 2px 4px rgba(0,0,0,0.5); }
+        #progress-fill { background: linear-gradient(90deg, #008f51, var(--primary)); height: 100%; width: 0%; transition: 0.7s cubic-bezier(0.4, 0, 0.2, 1); box-shadow: 0 0 15px var(--primary); }
+        #status-text { font-size: 1.1rem; font-weight: 600; min-height: 3.5em; display: flex; align-items: center; justify-content: center; line-height: 1.3; color: #fff; margin-bottom: 10px; }
+
+        /* SEÇÃO PRÓXIMO DESAFIO */
+        .next-mission { margin-top: 15px; padding-top: 15px; border-top: 1px solid #222; color: var(--next); font-size: 0.85rem; font-style: italic; }
+        .next-mission b { text-transform: uppercase; letter-spacing: 1px; display: block; margin-bottom: 5px; color: #fff; font-size: 0.7rem; font-style: normal; }
+
+        /* BOTÃO INSTAGRAM */
+        .btn-instagram { background: linear-gradient(45deg, #f09433 0%, #e6683c 25%, #dc2743 50%, #cc2366 75%, #bc1888 100%); border: none; color: #fff; width: 100%; padding: 12px; border-radius: 12px; cursor: pointer; font-weight: bold; margin-top: 15px; font-size: 0.9rem; letter-spacing: 1px; text-transform: uppercase; box-shadow: 0 4px 15px rgba(220,39,67,0.4); transition: 0.3s; }
+        .btn-instagram:hover { transform: translateY(-2px); box-shadow: 0 6px 20px rgba(220,39,67,0.6); }
+
+        .grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 8px; margin-bottom: 15px; }
+        .day { background: #1a1a1a; aspect-ratio: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; border-radius: 10px; border: 1px solid #333; color: #555; font-weight: bold; transition: 0.3s; line-height: 1.05; position: relative; overflow: hidden; text-align: center; cursor: pointer; }
+        .day.completed { background: var(--primary); color: #000; border-color: var(--primary); box-shadow: 0 0 12px rgba(0,255,136,0.5); }
+        .day .day-num { font-size: 0.85rem; }
+        .day .day-date { font-size: 0.65rem; opacity: 0.85; margin-top: 2px; }
+        .day.birthday { border-color: var(--next); box-shadow: 0 0 16px rgba(255,204,0,0.35); }
+        .day.birthday::after { content: "🎂"; position: absolute; top: 4px; right: 6px; font-size: 0.85rem; filter: drop-shadow(0 0 6px rgba(255,204,0,0.55)); }
+        .day.completed.birthday { box-shadow: 0 0 16px rgba(255,204,0,0.35), 0 0 12px rgba(0,255,136,0.45); }
+
+        .task-list { margin-top: 15px; }
+        .task-item { display: flex; align-items: center; margin-bottom: 12px; font-size: 0.9rem; padding: 12px; border-radius: 12px; background: #1a1a1a; border: 1px solid #333; transition: 0.2s; }
+        .task-item.done { border-color: var(--primary); color: var(--primary); opacity: 0.7; }
+        .checkbox { width: 22px; height: 22px; border: 2px solid #555; border-radius: 6px; margin-right: 12px; cursor: pointer; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+        .task-item.done .checkbox { background: var(--primary); border-color: var(--primary); }
+        .task-item.done .checkbox::after { content: '✓'; color: #000; font-weight: bold; }
+
+        .btn-add { background: none; border: 1px dashed var(--primary); color: var(--primary); width: 100%; padding: 10px; border-radius: 10px; cursor: pointer; margin-top: 10px; font-size: 0.85rem; font-weight: bold; }
+        .btn-undo { background: none; border: 1px solid var(--danger); color: var(--danger); width: 100%; padding: 8px; border-radius: 10px; cursor: pointer; font-size: 0.7rem; margin-top: 15px; opacity: 0.6; transition: 0.3s; }
+        .btn-undo:hover { opacity: 1; background: rgba(255,68,68,0.1); }
+        .delete-task { margin-left: auto; color: var(--danger); cursor: pointer; font-size: 1.2rem; padding-left: 10px; }
+
+        /* Efeito TÁ PAGO */
+        #ta-pago { position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%) scale(0); font-size: 5rem; font-weight: 900; color: var(--primary); z-index: 100; pointer-events: none; text-transform: uppercase; font-style: italic; text-shadow: 0 0 30px var(--primary), 0 0 60px #000; text-align: center; }
+        .show-pago { animation: flashAnim 1.2s ease-out forwards; }
+        @keyframes flashAnim { 0% { transform: translate(-50%, -50%) scale(0.5); opacity: 0; } 20% { transform: translate(-50%, -50%) scale(1.2); opacity: 1; } 100% { transform: translate(-50%, -50%) scale(1.5); opacity: 0; } }
+
+        /* OVERLAY DA IMAGEM GERADA */
+        #image-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.9); z-index: 200; display: none; align-items: center; justify-content: center; flex-direction: column; }
+        #generated-image-container { background: #000; padding: 10px; border-radius: 15px; box-shadow: 0 0 50px rgba(0,255,136,0.3); max-width: 90%; max-height: 80%; overflow: auto; margin-bottom: 20px; }
+        #generated-canvas { max-width: 100%; height: auto; border-radius: 10px; }
+        .close-overlay { background: var(--danger); border: none; color: #fff; padding: 10px 20px; border-radius: 8px; cursor: pointer; font-weight: bold; }
+    </style>
+</head>
+<body>
+
+    <div id="ta-pago">TÁ PAGO!</div>
+
+    <div id="image-overlay">
+        <div id="generated-image-container">
+            <canvas id="generated-canvas" width="1080" height="1920"></canvas>
+        </div>
+
+        <!-- ✅ No celular, salvar canvas precisa virar arquivo: botão BAIXAR -->
+        <button class="close-overlay" onclick="downloadImage()">BAIXAR IMAGEM</button>
+        <button class="close-overlay" style="margin-top:10px;background:#25D366"
+        onclick="shareWhatsApp()">
+    ENVIAR PELO WHATSAPP
+</button>
+        <button class="close-overlay" style="margin-top:10px;background:#333" onclick="closeImageOverlay()">FECHAR</button>
+
+        <p style="font-size: 0.8rem; color: #aaa; margin-top: 10px;">* Clique em BAIXAR IMAGEM para salvar no celular.</p>
+    </div>
+
+    <h1>Ponto de Ignição</h1>
+    <div class="subtitle">100 Dias • 1% Melhor • Por mim mesmo</div>
+
+    <div class="main-container">
+        <div class="left-panel">
+            <div class="stats">
+                <div id="status-text">Segunda-feira o sistema entra em produção.</div>
+                <div class="progress-bar"><div id="progress-fill"></div></div>
+                <div style="display:flex; justify-content: space-between; font-size: 0.75rem; font-weight: bold; letter-spacing: 1px;">
+                    <span>STATUS: <span id="percent-val">0</span>% OPTIMIZED</span>
+                    <span id="day-count">0/100 DIAS</span>
+                </div>
+
+                <div class="next-mission" id="next-area">
+                    <b>PRÓXIMA LINHA DE COMBATE:</b>
+                    <span id="next-text">"O primeiro passo é o mais difícil. Você já deu."</span>
+                </div>
+            </div>
+
+            <div class="grid" id="grid"></div>
+
+            <!-- ✅ Botão Instagram agora fica embaixo dos 100 dias -->
+            <button class="btn-instagram" onclick="generateInstagramImage()">Gerar Status Instagram</button>
+
+            <button class="btn-undo" onclick="removeLastDay()">Desfazer última vitória (Erro de input)</button>
+        </div>
+
+        <div class="right-panel">
+            <h2 style="font-size: 1.1rem; color: var(--next); text-align: center; margin-top: 0; letter-spacing: 1px;">MISSÕES DO DIA</h2>
+            <div id="task-list" class="task-list"></div>
+            <button class="btn-add" onclick="addTask()">+ ADICIONAR MISSÃO EXTRA</button>
+            <p style="font-size: 0.7rem; color: #555; text-align: center; margin-top: 15px;">
+                * Complete todas as missões para validar o dia.
+            </p>
+        </div>
+    </div>
+
+    <script>
+        const START_DATE = new Date(2026, 2, 2);
+        const BIRTHDAY_DATE = new Date(2026, 3, 5);
+
+        const statusUpdates = [
+            "O primeiro passo é o mais difícil. Você já deu.", "A dor é temporária, o orgulho é para sempre.", "Hoje você venceu a sua pior versão.", "160kg não te definem. Sua atitude sim.", "Disciplina é liberdade. Continue firme.", "O seu 'eu' do futuro agradece por hoje.", "Não pare até sentir orgulho.", "Silencie as desculpas. Ouça o seu suor.", "Um dia por vez. Uma vitória por vez.", "10 DIAS! A base está sendo construída.",
+            "Se fosse fácil, qualquer um faria.", "O cansaço passa. A conquista fica.", "Seu corpo é o seu templo. Cuide dele.", "Foco no objetivo, não no obstáculo.", "Você é mais forte do que imagina.", "O segredo é a constância, não a perfeição.", "Trabalhe em silêncio. Deixe o resultado barulhar.", "Sua mente comanda, seu corpo obedece.", "Respeite o seu processo.", "20 DIAS! Você está criando raízes profundas.",
+            "O caminho é longo, mas a vista é linda.", "Não olhe para trás. Você não vai para lá.", "A persistência é a inimiga da derrota.", "Honre a sua decisão de mudar.", "Transforme o cansaço em combustível.", "Seus filhos terão um exemplo de força em casa.", "Derrube um leão por dia.", "O suor de hoje é a saúde de amanhã.", "Cada gota de esforço conta.", "30 DIAS! O hábito agora faz parte de você.",
+            "Mantenha a chama da disciplina acesa.", "A preguiça é uma mentira. Não acredite nela.", "Fortaleça o seu joelho, fortaleça a sua vida.", "A mudança acontece fora da zona de conforto.", "Seja maior que suas desculpas.", "O sucesso é a soma de pequenos esforços.", "Respire fundo e continue avançando.", "Nada vence a sua determinação inabalável.", "Hoje você é 1% melhor que ontem.", "40 DIAS! O impossível está ficando para trás.",
+            "Sua vontade é o seu maior power.", "Não desvie o olhar do topo da montanha.", "O sacrifício é o intervalo para a glória.", "Acredite no processo, confie no trabalho.", "Cair é humano, levantar é de guerreiro.", "Sua saúde é o seu maior patrimônio.", "O cansaço é o sinal de que está funcionando.", "Firme como uma rocha, constante como o tempo.", "Vença a si mesmo e vencerá o mundo.", "50 DIAS! Metade da jornada concluída!",
+            "O topo está mais perto do que ontem.", "Mantenha a disciplina sob qualquer pressão.", "A consistência constrói gigantes de verdade.", "Cada passo te afasta do passado estagnado.", "Não conte os dias, faça os dias contarem.", "Sua força inspira quem está ao seu redor.", "A dor ensina o que o conforto esconde.", "O seu legado está sendo escrito agora.", "Orgulhe-se da sua trajetória vitoriosa.", "60 DIAS! Você já é uma nova pessoa.",
+            "A disciplina não depende de motivação.", "Sua meta é inegociável e absoluta.", "A vontade de vencer deve ser maior que a de parar.", "Seu corpo está se transformando em silêncio.", "Sinta o poder da sua própria evolução.", "Não pare quando estiver cansado, pare quando terminar.", "O esforço de hoje é a liberdade de amanhã.", "Blindado contra o desânimo e a dúvida.", "Você é o único dono do seu destino.", "70 DIAS! Você é um sobrevivente resiliente.",
+            "A caminhada ensina mais que a chegada.", "Não aceite menos do que o seu melhor absoluto.", "Resiliência é o seu novo nome do meio.", "Proteja o seu futuro e o da sua família.", "O amanhã será mais leve graças ao esforço de hoje.", "Supere os seus limites mentais.", "Seu coração está ficando mais forte a cada passo.", "A vitória sorri para quem persiste no escuro.", "Vença o dia, conquiste a sua nova vida.", "80 DIAS! Você está na elite da força de vontade.",
+            "A transformação é visceral, interna e externa.", "Mantenha os olhos fixos no prêmio final.", "Sua caminhada matinal é a sua oração diária.", "O peso está baixando, a moral está subindo.", "Nada pode parar um homem que sabe onde vai.", "A disciplina separa o sonho da realidade concreta.", "Vença a gravidade, vença o cansaço acumulado.", "Sua família terá um orgulho imenso de você.", "O suor é o choro da gordura sendo derrotada.", "90 DIAS! A reta final da sua glória pessoal.",
+            "Sinta o gosto da vitória que se aproxima.", "Você reescreveu a sua história com suor.", "Faltam poucos passos para o topo absoluto.", "A jornada te moldou para ser um gigante.", "O cansaço hoje é a sua medalha de honra.", "Sua nova vida se tornou o seu novo normal.", "Mantenha a guarda alta até o último segundo.", "Amanhã você será uma lenda para si mesmo.", "99 DIAS. O último sacrifício antes do triunfo.", "100 DIAS! VOCÊ VENCEU! O SEU LEGADO ESTÁ VIVO!"
+        ];
+
+        let completedDays = JSON.parse(localStorage.getItem('lucasLegacy_vFinal_days')) || [];
+        let tasks = JSON.parse(localStorage.getItem('lucasLegacy_vFinal_tasks')) || [
+            { text: "Acordar às 06:15", done: false },
+            { text: "Exercitar (Treino)", done: false },
+            { text: "Caminhada no SESI", done: false }
+        ];
+
+        function pad2(n) { return String(n).padStart(2, '0'); }
+        function addDays(date, days) { const d = new Date(date.getTime()); d.setDate(d.getDate() + days); return d; }
+        function sameDay(a, b) { return a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth() && a.getDate() === b.getDate(); }
+        function formatDDMM(d) { return `${pad2(d.getDate())}/${pad2(d.getMonth() + 1)}`; }
+
+        function renderTasks() {
+            const container = document.getElementById('task-list');
+            container.innerHTML = '';
+            tasks.forEach((task, index) => {
+                const item = document.createElement('div');
+                item.className = `task-item ${task.done ? 'done' : ''}`;
+                item.innerHTML = `
+                    <div class="checkbox" onclick="toggleTask(${index})"></div>
+                    <span>${task.text}</span>
+                    <span class="delete-task" onclick="deleteTask(${index})">×</span>
+                `;
+                container.appendChild(item);
+            });
+            save();
+        }
+
+        function toggleTask(index) {
+            tasks[index].done = !tasks[index].done;
+            renderTasks();
+            if (tasks.length > 0 && tasks.every(t => t.done)) {
+                completeDay();
+            }
+        }
+        async function shareWhatsApp() {
+    const canvas = document.getElementById('generated-canvas');
+
+    if (!navigator.canShare || !navigator.share) {
+        alert("Seu navegador não suporta envio direto. Use 'BAIXAR IMAGEM'.");
+        return;
+    }
+
+    canvas.toBlob(async (blob) => {
+        const file = new File(
+            [blob],
+            `hardware-legado-dia-${completedDays.length}.png`,
+            { type: "image/png" }
+        );
+
+        const shareData = {
+            files: [file],
+            text: `Dia ${completedDays.length}/100 — Hardware de Legado 💪🔥`
+        };
+
+        try {
+            if (navigator.canShare(shareData)) {
+                await navigator.share(shareData);
+            } else {
+                alert("Compartilhamento não suportado neste dispositivo.");
+            }
+        } catch (err) {
+            console.log("Compartilhamento cancelado ou erro:", err);
+        }
+    });
+}
+
+        function completeDay() {
+            const nextDay = completedDays.length + 1;
+            if (nextDay <= 100 && !completedDays.includes(nextDay)) {
+                completedDays.push(nextDay);
+                const pago = document.getElementById('ta-pago');
+                pago.classList.add('show-pago');
+                confetti({ particleCount: 200, spread: 90, origin: { y: 0.6 } });
+
+                setTimeout(() => {
+                    pago.classList.remove('show-pago');
+                    tasks.forEach(t => t.done = false);
+                    renderTasks();
+                }, 1300);
+
+                renderGrid();
+                updateDisplay();
+                save();
+            }
+        }
+
+        function addTask() {
+            const text = prompt("Qual a nova missão indispensável?");
+            if (text) { tasks.push({ text: text, done: false }); renderTasks(); }
+        }
+
+        function deleteTask(index) {
+            if (confirm("Remover esta tarefa da rotina?")) { tasks.splice(index, 1); renderTasks(); }
+        }
+
+        function removeLastDay() {
+            if (completedDays.length > 0 && confirm("Deseja cancelar o registro do último dia?")) {
+                completedDays.pop();
+                renderGrid(); updateDisplay(); save();
+            }
+        }
+
+        function toggleDayManual(day) {
+            const index = completedDays.indexOf(day);
+            if (index !== -1 && confirm(`Deseja remover o registro do Dia ${day}?`)) {
+                completedDays.splice(index, 1);
+                completedDays.sort((a,b) => a-b);
+                renderGrid(); updateDisplay(); save();
+            }
+        }
+
+        function updateDisplay() {
+            const count = completedDays.length;
+            document.getElementById('percent-val').innerText = count;
+            document.getElementById('day-count').innerText = `${count}/100 DIAS`;
+            document.getElementById('progress-fill').style.width = count + '%';
+
+            const statusEl = document.getElementById('status-text');
+            const nextText = document.getElementById('next-text');
+            const nextArea = document.getElementById('next-area');
+
+            if (count === 0) {
+                statusEl.innerText = "Segunda-feira o sistema entra em produção.";
+                nextText.innerText = statusUpdates[0];
+            } else if (count >= 100) {
+                statusEl.innerText = statusUpdates[99];
+                nextArea.style.display = 'none';
+            } else {
+                statusEl.innerText = statusUpdates[count - 1];
+                nextText.innerText = statusUpdates[count];
+            }
+        }
+
+        function renderGrid() {
+            const grid = document.getElementById('grid');
+            grid.innerHTML = '';
+            for (let i = 1; i <= 100; i++) {
+                const dayDiv = document.createElement('div');
+                const dayDate = addDays(START_DATE, i - 1);
+                const isBirthday = sameDay(dayDate, BIRTHDAY_DATE);
+                dayDiv.className = 'day' + (completedDays.includes(i) ? ' completed' : '') + (isBirthday ? ' birthday' : '');
+                dayDiv.innerHTML = `<div class="day-num">${i}</div><div class="day-date">${formatDDMM(dayDate)}</div>`;
+                dayDiv.onclick = () => toggleDayManual(i);
+                grid.appendChild(dayDiv);
+            }
+        }
+
+        function save() {
+            localStorage.setItem('lucasLegacy_vFinal_days', JSON.stringify(completedDays));
+            localStorage.setItem('lucasLegacy_vFinal_tasks', JSON.stringify(tasks));
+        }
+
+        // --- LÓGICA DE GERAÇÃO DE IMAGEM INSTAGRAM ---
+
+        function closeImageOverlay() {
+            document.getElementById('image-overlay').style.display = 'none';
+        }
+
+        // ✅ NOVO: baixar a imagem (funciona no celular)
+        function downloadImage() {
+            const canvas = document.getElementById('generated-canvas');
+            const link = document.createElement('a');
+            link.download = `hardware-de-legado-dia-${completedDays.length}.png`;
+            link.href = canvas.toDataURL("image/png");
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+        }
+
+        function generateInstagramImage() {
+            const count = completedDays.length;
+            if (count === 0) { alert("Complete pelo menos o primeiro dia para gerar o status!"); return; }
+
+            const canvas = document.getElementById('generated-canvas');
+            const ctx = canvas.getContext('2d');
+            const overlay = document.getElementById('image-overlay');
+            const fraseDoDia = completedDays.length >= 100 ? statusUpdates[99] : statusUpdates[completedDays.length - 1];
+
+            overlay.style.display = 'flex';
+
+            // 1. Fundo Gradiente Escuro Premium
+            const grd = ctx.createLinearGradient(0, 0, 0, 1920);
+            grd.addColorStop(0, "#0a0a0a");
+            grd.addColorStop(1, "#000000");
+            ctx.fillStyle = grd;
+            ctx.fillRect(0, 0, 1080, 1920);
+
+            // 2. Linhas de Grade Sutis (Tech Style)
+            ctx.strokeStyle = "rgba(255, 255, 255, 0.03)";
+            ctx.lineWidth = 1;
+            for(let x = 0; x < 1080; x += 100) { ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, 1920); ctx.stroke(); }
+            for(let y = 0; y < 1920; y += 100) { ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(1080, y); ctx.stroke(); }
+
+            // 3. Título Principal (Neon Verde)
+            ctx.font = "bold 60px 'Segoe UI', sans-serif";
+            ctx.fillStyle = "#00ff88";
+            ctx.textAlign = "center";
+            ctx.shadowColor = "rgba(0, 255, 136, 0.7)";
+            ctx.shadowBlur = 20;
+            ctx.fillText("PONTO DE IGNIÇÃO", 540, 200);
+
+            ctx.shadowBlur = 0; // Reset shadow
+
+            // 4. Header Secundário
+            ctx.font = "italic 35px 'Segoe UI', sans-serif";
+            ctx.fillStyle = "#666666";
+            ctx.fillText("100 Dias • 1% Melhor • Por mim mesmo", 540, 260);
+
+            // 5. Card Central (Área da Conquista)
+            const cardY = 450;
+            const cardH = 700;
+            const cardW = 900;
+            const cardX = (1080 - cardW) / 2;
+
+            // Fundo do Card
+            ctx.fillStyle = "#121212";
+            ctx.beginPath();
+            ctx.roundRect(cardX, cardY, cardW, cardH, 30);
+            ctx.fill();
+
+            // Borda do Card
+            ctx.strokeStyle = "#222222";
+            ctx.lineWidth = 2;
+            ctx.stroke();
+
+            // 6. Texto Gigante "TÁ PAGO!"
+            ctx.font = "900 italic 160px 'Segoe UI', sans-serif";
+            ctx.fillStyle = "#00ff88";
+            ctx.shadowColor = "rgba(0, 255, 136, 0.8)";
+            ctx.shadowBlur = 40;
+            ctx.fillText("TÁ PAGO!", 540, cardY + 220);
+            ctx.shadowBlur = 0;
+
+            // 7. Grande Número do Progresso
+            ctx.font = "bold 250px 'Segoe UI', sans-serif";
+            ctx.fillStyle = "#ffffff";
+            ctx.fillText(`${count}/100`, 540, cardY + 500);
+
+            // 8. Barra de Progresso Visual no Card
+            const barW = 700;
+            const barX = (1080 - barW) / 2;
+            const barY = cardY + 600;
+
+            // Fundo Barra
+            ctx.fillStyle = "#222222";
+            ctx.beginPath();
+            ctx.roundRect(barX, barY, barW, 25, 12);
+            ctx.fill();
+
+            // Preenchimento Barra Neon
+            ctx.fillStyle = "#00ff88";
+            ctx.shadowColor = "rgba(0, 255, 136, 0.6)";
+            ctx.shadowBlur = 15;
+            ctx.beginPath();
+            ctx.roundRect(barX, barY, (barW * count) / 100, 25, 12);
+            ctx.fill();
+            ctx.shadowBlur = 0;
+
+            // 9. Frase Motivacional do Dia
+            const fraseY = cardY + cardH + 150;
+            ctx.font = "bold 50px 'Segoe UI', sans-serif";
+            ctx.fillStyle = "#ffffff";
+            ctx.textAlign = "center";
+            wrapText(ctx, `"${fraseDoDia}"`, 540, fraseY, 900, 70);
+
+            // 10. Rodapé
+            ctx.font = "40px 'Segoe UI', sans-serif";
+            ctx.fillStyle = "#444444";
+            ctx.fillText("Log de Evolução Diária • Lucas Modesto", 540, 1800);
+
+            ctx.font = "30px 'Segoe UI', sans-serif";
+            ctx.fillStyle = "#333333";
+            ctx.fillText(`Gerado em: ${new Date().toLocaleDateString('pt-BR')}`, 540, 1850);
+        }
+
+        function wrapText(context, text, x, y, maxWidth, lineHeight) {
+            const words = text.split(' ');
+            let line = '';
+            let currentY = y;
+
+            for (let n = 0; n < words.length; n++) {
+                let testLine = line + words[n] + ' ';
+                let metrics = context.measureText(testLine);
+                let testWidth = metrics.width;
+                if (testWidth > maxWidth && n > 0) {
+                    context.fillText(line, x, currentY);
+                    line = words[n] + ' ';
+                    currentY += lineHeight;
+                } else {
+                    line = testLine;
+                }
+            }
+            context.fillText(line, x, currentY);
+        }
+
+        renderGrid();
+        updateDisplay();
+        renderTasks();
+    </script>
+</body>
+</html>
